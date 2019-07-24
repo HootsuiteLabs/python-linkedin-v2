@@ -20,6 +20,7 @@ __all__ = ['LinkedInAuthentication', 'LinkedInApplication', 'PERMISSIONS']
 
 PERMISSIONS = enum('Permission',
                    COMPANY_ADMIN='rw_company_admin',
+                   LITE_PROFILE='r_liteprofile',
                    BASIC_PROFILE='r_basicprofile',
                    FULL_PROFILE='r_fullprofile',
                    EMAIL_ADDRESS='r_emailaddress',
@@ -53,6 +54,10 @@ NETWORK_UPDATES = enum('NetworkUpdate',
                        SHARED='SHAR',
                        VIRAL='VIRL')
 
+PROJECTIONS = enum('Projection',
+                   EXPAND_PROFILE_PICTURE={'projection': '(id,firstName,lastName,profilePicture(displayImage~:playableStreams))'},
+                   EXPAND_EMAIL={'q': 'members', 'projection': '(elements*(handle~))'})
+
 
 class LinkedInDeveloperAuthentication(object):
     """
@@ -77,8 +82,8 @@ class LinkedInAuthentication(object):
     Implements a standard OAuth 2.0 flow that involves redirection for users to
     authorize the application to access account data.
     """
-    AUTHORIZATION_URL = 'https://www.linkedin.com/uas/oauth2/authorization'
-    ACCESS_TOKEN_URL = 'https://www.linkedin.com/uas/oauth2/accessToken'
+    AUTHORIZATION_URL = 'https://www.linkedin.com/oauth/v2/authorization'
+    ACCESS_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken'
 
     def __init__(self, key, secret, redirect_uri, permissions=None):
         self.key = key
@@ -194,3 +199,9 @@ class LinkedInApplication(object):
         json_response = response.json()
         json_response.update({'numConnections': connections})
         return json_response
+
+    def get_email(self):
+        url = '%s/emailAddress' % ENDPOINTS.BASE
+        response = self.make_request('GET', url, params=PROJECTIONS.EXPAND_EMAIL)
+        raise_for_error(response)
+        return response.json()

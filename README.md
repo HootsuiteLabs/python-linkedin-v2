@@ -202,6 +202,39 @@ application.get_connections(totals_only=True)
 }
 ```
 
+## Sign In With LinkedIn (lite profile)
+
+Apps without access to full profile granted by LinkedIn are limited to the sign in with LinkedIn API, check out the [documentation](https://docs.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin). Requests to the profile API made by these apps are limited to the lite profile scope, check the [documentation](https://docs.microsoft.com/en-us/linkedin/shared/references/v2/profile/lite-profile?context=linkedin/consumer/context) for more details.
+
+To authenticate with this mode you need to pass the correct permissions to `LinkedInAuthentication`:
+
+```python
+from linkedin_v2.linkedin import PERMISSIONS
+
+authentication = linkedin.LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, [PERMISSIONS.LITE_PROFILE, PERMISSIONS.EMAIL_ADDRESS])
+```
+
+With these permissions, `get_profile` returns only the profile's id, first name, and last name. It is possible to retrieve the profile picture by passing a specific projection to `get_profile`.
+
+```python
+from linkedin_v2.linkedin import PROJECTIONS
+
+application.get_profile(params=PROJECTIONS.EXPAND_PROFILE_PICTURE)
+# Be aware that expanding profile pcture results in a very large response json...
+```
+
+In order to fetch the profile's email, an extra call is required:
+
+```python
+application.get_email()
+{
+    "handle": "urn:li:emailAddress:3775708763",
+    "handle~": {
+        "emailAddress": "hsimpson@linkedin.com"
+    }
+}
+```
+
 ## Throttle Limits
 
 LinkedIn API keys are throttled by default. You should take a look at the [Throttle Limits Documentation](http://developer.linkedin.com/documents/throttle-limits) to get more information about it.
