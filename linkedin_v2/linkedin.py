@@ -12,7 +12,7 @@ except ImportError:
 import requests
 from requests_oauthlib import OAuth1
 
-from .models import AccessToken
+from .models import *
 from .utils import enum, to_utf8, raise_for_error, StringIO
 import json
 import urllib
@@ -75,6 +75,9 @@ class LinkedInDeveloperAuthentication(object):
         self.permissions = permissions
 
 
+REDIRECT_URI_ERROR_MESSAGE = 'You must init LinkedInAuthentication with a redirect_url'
+AUTHORIZATION_CODE_ERROR_MESSAGE = 'You must first get the authorization code'
+
 class LinkedInAuthentication(object):
     """
     Implements a standard OAuth 2.0 flow that involves redirection for users to
@@ -83,7 +86,7 @@ class LinkedInAuthentication(object):
     AUTHORIZATION_URL = 'https://www.linkedin.com/uas/oauth2/authorization'
     ACCESS_TOKEN_URL = 'https://www.linkedin.com/uas/oauth2/accessToken'
 
-    def __init__(self, key, secret, redirect_uri, permissions=None):
+    def __init__(self, key, secret, redirect_uri=None, permissions=None):
         self.key = key
         self.secret = secret
         self.redirect_uri = redirect_uri
@@ -95,6 +98,7 @@ class LinkedInAuthentication(object):
 
     @property
     def authorization_url(self):
+        assert self.redirect_uri, REDIRECT_URI_ERROR_MESSAGE
         qd = {'response_type': 'code',
               'client_id': self.key,
               'scope': (' '.join(self.permissions)).strip(),
@@ -115,19 +119,52 @@ class LinkedInAuthentication(object):
                           self.secret).encode("utf8")
         ).hexdigest()
 
-    def get_access_token(self, timeout=60):
-        assert self.authorization_code, 'You must first get the authorization code'
+    @staticmethod
+    def _get_token_from_response(response):
+        response = response.json()
+        access_token = response.get(ACCESS_TOKEN_KEY)
+        expires_in = response.get(EXPIRES_IN_KEY)
+        refresh_token = response.get(REFRESH_TOKEN_KEY)
+        refresh_token_expires_in = response.get(REFRESH_TOKEN_EXPIRES_IN_KEY)
+
+        return AccessToken(
+            access_token,
+            expires_in,
+            refresh_token or None,
+            refresh_token_expires_in or None
+        )
+
+    def get_access_token(self, timeout=TIMEOUT):
+        assert self.authorization_code, AUTHORIZATION_CODE_ERROR_MESSAGE
+        assert self.redirect_uri, REDIRECT_URI_ERROR_MESSAGE
         qd = {'grant_type': 'authorization_code',
               'code': self.authorization_code,
               'redirect_uri': self.redirect_uri,
               'client_id': self.key,
               'client_secret': self.secret}
-        response = requests.post(
-            self.ACCESS_TOKEN_URL, data=qd, timeout=timeout)
+        response = requests.post(self.ACCESS_TOKEN_URL, data=qd, timeout=timeout)
         raise_for_error(response)
-        response = response.json()
-        self.token = AccessToken(
-            response['access_token'], response['expires_in'])
+
+        self.token = self._get_token_from_response(response)
+        return self.token
+
+    def refresh_access_token(self, refresh_token, timeout=TIMEOUT):
+        """
+        Exchanges a Refresh Token for a New Access Token
+        :param refresh_token: str
+        :param timeout: int
+        :return: AccessToken
+        """
+        qd = {
+            'grant_type': 'refresh_token',
+            REFRESH_TOKEN_KEY: refresh_token,
+            'client_id': self.key,
+            'client_secret': self.secret
+        }
+        response = requests.post(self.ACCESS_TOKEN_URL, data=qd, timeout=timeout)
+        raise_for_error(response)
+
+        self.token = self._get_token_from_response(response)
         return self.token
 
 
@@ -153,10 +190,10 @@ class LinkedInApplication(object):
         self.authentication = authentication
         if not self.authentication:
             self.authentication = LinkedInAuthentication('', '', '')
-            self.authentication.token = AccessToken(token, None)
+            self.authentication.token = AccessToken(token, None, None, None)
 
     def make_request(self, method, url, data=None, params=None, headers=None,
-                     timeout=60):
+                     timeout=TIMEOUT):
         if headers is None:
             headers = {'x-li-format': 'json',
                        'Content-Type': 'application/json'}
@@ -231,41 +268,49 @@ class LinkedInApplication(object):
         raise_for_error(response)
         return response.json()
 
-    def post_share(self, post_type='person', company_id=None, comment=None, title=None, description=None,
-                   submitted_url=None, submitted_image_url=None,
-                   visibility_code='anyone'):
-        post_owner = ''
+    def post_share(self, post_type='person', company_id=None, title=None, description=None,
+                   submitted_url=None, submitted_image_url=None):
+
         if post_type == 'organization':
             post_owner = "urn:li:organization:%s" % company_id
         else:
             post_owner = "urn:li:person:%s" % self.get_profile()['id']
+
         post = {
             "owner": post_owner,
             "text": {
-                "text": description
+                "text": ""
             },
-            "subject": title,
+            "subject": "",
             "distribution": {
                 "linkedInDistributionTarget": {}
             },
             "content": {
-                "contentEntities": [
-                    {
-                        "entityLocation": "",
-                        "thumbnails": []
-                    }
-                ],
+                "contentEntities": [],
                 "title": ""
             }
         }
-        if comment is not None:
-            post['comment'] = comment
+
+        content_entity = {
+            "entityLocation": "",
+            "thumbnails": []
+        }
+
         if title is not None:
             post['content']['title'] = title
+            post['subject'] = title
+
+        if description is not None:
+            post['text']['text'] = description
+
         if submitted_url is not None:
-            post['content']['submitted-url'] = submitted_url
+            content_entity['entityLocation'] = submitted_url
+
         if submitted_image_url is not None:
-            post['content']['contentEntities']['thumbnails'][0]['resolvedUrl'] = submitted_image_url
+            content_entity['thumbnails'] = [{"imageSpecificContent": {}, "resolvedUrl": submitted_image_url}]
+
+        post['content']['contentEntities'] = [content_entity]
+
         response = self.make_request(
             'POST', ENDPOINTS.SHARE, data=json.dumps(post))
         return response.json()
@@ -318,7 +363,7 @@ class LinkedInApplication(object):
         print(url)
         response = self.make_request(
             'GET', url, params=params)
-        # raise_for_error(response)
+        raise_for_error(response)
         return response.json()
 
     def get_group(self, group_id, params=None, headers=None):

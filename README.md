@@ -82,7 +82,7 @@ authentication = linkedin.LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL
 # It can be used to track your user state or something else (it's up to you)
 # Be aware that this value is sent to OAuth server AS IS - make sure to encode or hash it
 #authorization.state = 'your_encoded_message'
-print authentication.authorization_url  # open this url on your browser
+print(authentication.authorization_url)  # open this url on your browser
 application = linkedin.LinkedInApplication(authentication)
 ```
 When you grant access to the application, you will be redirected to the return url with the following query strings appended to your **RETURN_URL**:
@@ -95,7 +95,27 @@ This means that the value of the **authorization_code** is **AQTXrv3Pe1iWS0EQvLg
 
 ```python
 authentication.authorization_code = 'AQTXrv3Pe1iWS0EQvLg0NJA8ju_XuiadXACqHennhWih7iRyDSzAm5jaf3R7I8'
-authentication.get_access_token()
+token = authentication.get_access_token()
+```
+
+you can retrieve the access token though the namedtuple returned by the get_access_token method
+
+```python
+print(token.access_token)
+print(token.expires_in)
+```
+
+optionally, LinkedIn supports programmatic refresh tokens for all approved Marketing Developer Platform (MDP) partners, so
+you can obtain a new access token passing a refresh token to the refresh_access_token method, more info [here](https://docs.microsoft.com/en-us/linkedin/shared/authentication/programmatic-refresh-tokens)
+
+```python
+refresh_token = token.refresh_token # the token previously obtained via Oauth
+authentication = linkedin.LinkedInAuthentication(API_KEY, API_SECRET)
+new_token = authentication.refresh_access_token(refresh_token)
+print(new_token.access_token)
+print(new_token.expires_in)
+print(new_token.refresh_token)
+print(new_token.refresh_token_expires_in)
 ```
 
 After you get the access token, you are now permitted to make API calls on behalf of the user who granted access to you app. In addition to that, in order to prevent from going through the OAuth flow for every consecutive request,

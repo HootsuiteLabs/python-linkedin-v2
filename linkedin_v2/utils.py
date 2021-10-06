@@ -70,8 +70,8 @@ def raise_for_error(response):
                 raise ex(message)
             else:
                 raise LinkedInError(error.message)
-        except (ValueError, TypeError):
-            raise LinkedInError(error.message)
+        except (ValueError, TypeError, AttributeError):
+            raise LinkedInError(str(error))
 
 
 HTTP_METHODS = enum('HTTPMethod', GET='GET', POST='POST',
