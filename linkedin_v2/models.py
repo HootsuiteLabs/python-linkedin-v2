@@ -1,7 +1,20 @@
 # -*- coding: utf-8 -*-
 import collections
 
-AccessToken = collections.namedtuple('AccessToken', ['access_token', 'expires_in'])
+TIMEOUT = 60 # secs
+ACCESS_TOKEN_KEY = 'access_token'
+EXPIRES_IN_KEY = 'expires_in'
+REFRESH_TOKEN_KEY = 'refresh_token'
+REFRESH_TOKEN_EXPIRES_IN_KEY = 'refresh_token_expires_in'
+
+AccessToken = collections.namedtuple('AccessToken',
+    [
+        ACCESS_TOKEN_KEY,
+        EXPIRES_IN_KEY,
+        REFRESH_TOKEN_KEY,
+        REFRESH_TOKEN_EXPIRES_IN_KEY
+    ]
+)
 
 
 class LinkedInRecipient(object):

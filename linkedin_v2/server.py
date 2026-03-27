@@ -21,7 +21,6 @@ def quick_api(api_key, secret_key, port=8000):
     auth = LinkedInAuthentication(api_key, secret_key, 'http://localhost:8000/',
                                   PERMISSIONS.enums.values())
     app = LinkedInApplication(authentication=auth)
-    print auth.authorization_url
     _wait_for_user_to_enter_browser(app, port)
     return app
 
