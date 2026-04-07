@@ -30,7 +30,7 @@ Set `LINKEDIN_API_KEY` and `LINKEDIN_API_SECRET`, configure your app to redirect
 
 ### Developer Authentication
 
-To connect to LinkedIn as a developer or just to access your own data, you don't even have to implement an OAuth 2.0 flow that involves redirects. You can simply use the 4 credentials that are provided to you in your LinkedIn appliation as part of an OAuth 1.0a flow and immediately access your data. Here's how:
+To connect to LinkedIn as a developer or just to access your own data, you don't even have to implement an OAuth 2.0 flow that involves redirects. You can simply use the 4 credentials that are provided to you in your LinkedIn application as part of an OAuth 1.0a flow and immediately access your data. Here's how:
 
 ```python
 from linkedin_v2 import linkedin
